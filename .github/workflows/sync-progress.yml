@@ -1,0 +1,57 @@
+name: Sync Progress Tracking
+on:
+  issues:
+    types: [closed, reopened, labeled, unlabeled]
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Update README checkboxes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 .github/scripts/update-checkboxes.py
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "FrameFY Bot"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Auto-update: Sync progress tracking
+
+            Updated based on issue: ${{ github.event.issue.title }}
+            Action: ${{ github.event.action }}"
+            git push
+          fi
+
+  notify-completion:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' && contains(github.event.issue.labels.*.name, 'crítico' )
+    steps:
+      - name: Celebrate critical completion
+        run: |
+          echo "🎉 FUNCIONALIDADE CRÍTICA CONCLUÍDA!"
+          echo "Título: ${{ github.event.issue.title }}"
+          echo "Número: #${{ github.event.issue.number }}"
+          echo "URL: ${{ github.event.issue.html_url }}"
